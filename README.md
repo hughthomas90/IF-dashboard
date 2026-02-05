@@ -75,6 +75,12 @@ To run a focused test against **Nature Reviews Gastroenterology & Hepatology** o
 python -m if_dashboard.test_call
 ```
 
+You can also run it directly as a script:
+
+```bash
+python if_dashboard/test_call.py
+```
+
 Optional overrides:
 
 ```bash

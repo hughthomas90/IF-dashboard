@@ -2,12 +2,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime
+from pathlib import Path
 
-from .config import get_settings
-from .metrics import compute_impact_factor, compute_immediacy_factor
-from .scopus import ScopusClient
-from .storage import CacheStore
+if __package__ in (None, ""):
+    repo_root = Path(__file__).resolve().parents[1]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+from if_dashboard.config import get_settings
+from if_dashboard.metrics import compute_impact_factor, compute_immediacy_factor
+from if_dashboard.scopus import ScopusClient
+from if_dashboard.storage import CacheStore
 
 DEFAULT_TEST_JOURNAL_NAME = "Nature Reviews Gastroenterology & Hepatology"
 DEFAULT_TEST_ISSN = "1759-5045"
