@@ -66,6 +66,23 @@ This implementation uses:
 
 If Scopus response schema differs for your subscription tier, update parser logic in `if_dashboard/scopus.py`.
 
+
+## One-journal test call
+
+To run a focused test against **Nature Reviews Gastroenterology & Hepatology** only:
+
+```bash
+python -m if_dashboard.test_call
+```
+
+Optional overrides:
+
+```bash
+python -m if_dashboard.test_call --issn 1759-5045 --year 2025
+```
+
+This prints item counts, impact/immediacy values, and API usage for that one test journal.
+
 ## API usage visibility
 
 The dashboard now includes a **Scopus API Usage** card showing:
