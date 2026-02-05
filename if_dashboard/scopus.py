@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -49,11 +51,22 @@ class ScopusClient:
             return rec.payload
 
         query = urlencode(params)
-        req = Request(f"{self.base_url}{path}?{query}", headers=self.headers)
-        with urlopen(req, timeout=self.timeout) as response:  # noqa: S310
-            payload = json.loads(response.read().decode("utf-8"))
-            self.usage.api_calls_made += 1
-            self._update_quota_from_headers(dict(response.headers.items()))
+        url = f"{self.base_url}{path}?{query}"
+        req = Request(url, headers=self.headers)
+
+        try:
+            with urlopen(req, timeout=self.timeout) as response:  # noqa: S310
+                payload = json.loads(response.read().decode("utf-8"))
+                self.usage.api_calls_made += 1
+                self._update_quota_from_headers(dict(response.headers.items()))
+        except HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            detail = (
+                f"Scopus API request failed ({exc.code}) for {path}. "
+                f"URL: {url}. Response: {body[:500]}"
+            )
+            raise RuntimeError(detail) from exc
+
         self.cache.set(cache_key, payload)
         return payload
 
@@ -66,6 +79,13 @@ class ScopusClient:
         if remaining and remaining.isdigit():
             self.usage.quota_remaining = int(remaining)
 
+    @staticmethod
+    def _extract_scopus_id(eid: str) -> str:
+        match = re.search(r"(\d+)$", eid)
+        if not match:
+            raise ValueError(f"Could not extract numeric scopus_id from EID: {eid}")
+        return match.group(1)
+
     def fetch_journal_items(self, issn: str, year: int) -> list[dict[str, Any]]:
         query = f"ISSN({issn}) AND PUBYEAR IS {year}"
         payload = self._get(
@@ -76,7 +96,7 @@ class ScopusClient:
         return payload.get("search-results", {}).get("entry", [])
 
     def fetch_citations_by_year(self, eid: str, start_year: int, end_year: int) -> dict[int, int]:
-        scopus_id = eid.split("-")[-1]
+        scopus_id = self._extract_scopus_id(eid)
         payload = self._get(
             "/content/abstract/citations",
             {

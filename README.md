@@ -89,6 +89,11 @@ python -m if_dashboard.test_call --issn 1759-5045 --year 2025
 
 This prints item counts, impact/immediacy values, and API usage for that one test journal.
 
+
+### If you get a 400 from Citation Overview
+
+The client now prints the failing URL/path and the first part of Scopus error body to help debugging invalid parameters (for example, an invalid document identifier).
+
 ## API usage visibility
 
 The dashboard now includes a **Scopus API Usage** card showing:
