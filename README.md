@@ -46,6 +46,7 @@ Set in `.env`:
 - `CACHE_DB_PATH` (defaults to `./if_dashboard.db`)
 - `CACHE_TTL_DAYS` (defaults to `7`)
 - `PORT` (defaults to `8000`)
+- `SCOPUS_SEARCH_COUNT` (defaults to `25`; lower this if your key has strict service-level limits)
 
 ## Add your journals
 
@@ -93,6 +94,8 @@ This prints item counts, impact/immediacy values, and API usage for that one tes
 ### If you get a 400 from Citation Overview
 
 The client now prints the failing URL/path and the first part of Scopus error body to help debugging invalid parameters (for example, an invalid document identifier).
+
+If the error says `Exceeds the maximum number allowed for the service level`, reduce `SCOPUS_SEARCH_COUNT` (for example to `10` or `5`).
 
 ## API usage visibility
 

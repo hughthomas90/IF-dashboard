@@ -54,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
         base_url=settings.scopus_base_url,
         cache=cache,
         insttoken=settings.scopus_insttoken,
+        search_count=settings.scopus_search_count,
     )
 
     year = args.year

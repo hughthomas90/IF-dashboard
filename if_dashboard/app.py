@@ -79,7 +79,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         elif selected_issn:
             try:
                 cache = CacheStore(settings.cache_db_path, settings.cache_ttl_days)
-                client = ScopusClient(settings.scopus_api_key, settings.scopus_base_url, cache, settings.scopus_insttoken)
+                client = ScopusClient(settings.scopus_api_key, settings.scopus_base_url, cache, settings.scopus_insttoken, search_count=settings.scopus_search_count)
                 items = client.hydrate_items_with_citations(
                     issn=selected_issn,
                     years=[year - 2, year - 1, year],

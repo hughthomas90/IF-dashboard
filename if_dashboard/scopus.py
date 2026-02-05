@@ -34,12 +34,14 @@ class ScopusClient:
         cache: CacheStore,
         insttoken: str | None = None,
         timeout: int = 30,
+        search_count: int = 25,
     ) -> None:
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.cache = cache
         self.timeout = timeout
         self.usage = ApiUsage()
+        self.search_count = max(1, search_count)
         self.headers = {"X-ELS-APIKey": self.api_key, "Accept": "application/json"}
         if insttoken:
             self.headers["X-ELS-Insttoken"] = insttoken
@@ -90,8 +92,8 @@ class ScopusClient:
         query = f"ISSN({issn}) AND PUBYEAR IS {year}"
         payload = self._get(
             "/content/search/scopus",
-            {"query": query, "count": 200, "view": "STANDARD"},
-            cache_key=f"search:{issn}:{year}",
+            {"query": query, "count": self.search_count, "view": "STANDARD"},
+            cache_key=f"search:{issn}:{year}:count={self.search_count}",
         )
         return payload.get("search-results", {}).get("entry", [])
 

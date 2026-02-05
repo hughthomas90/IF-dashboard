@@ -12,6 +12,7 @@ class Settings:
     cache_db_path: str
     cache_ttl_days: int
     port: int
+    scopus_search_count: int
 
 
 def get_settings() -> Settings:
@@ -22,4 +23,5 @@ def get_settings() -> Settings:
         cache_db_path=os.getenv("CACHE_DB_PATH", "./if_dashboard.db"),
         cache_ttl_days=int(os.getenv("CACHE_TTL_DAYS", "7")),
         port=int(os.getenv("PORT", "8000")),
+        scopus_search_count=int(os.getenv("SCOPUS_SEARCH_COUNT", "25")),
     )
