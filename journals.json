@@ -1,4 +1,11 @@
 [
-  {"name": "Example Journal A", "issn": "1234-5678"},
-  {"name": "Example Journal B", "issn": "2345-6789"}
+  {"name": "The Lancet Gastroenterology & Hepatology", "issn": "2468-1253"},
+  {"name": "Nature Reviews Gastroenterology & Hepatology", "issn": "1759-5045"},
+  {"name": "Journal of Hepatology", "issn": "0168-8278"},
+  {"name": "Gastroenterology", "issn": "0016-5085"},
+  {"name": "Hepatology", "issn": "0270-9139"},
+  {"name": "Gut", "issn": "0017-5749"},
+  {"name": "The Lancet", "issn": "0140-6736"},
+  {"name": "New England Journal of Medicine", "issn": "0028-4793"},
+  {"name": "Nature Medicine", "issn": "1078-8956"}
 ]

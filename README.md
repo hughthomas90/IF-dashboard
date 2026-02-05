@@ -49,7 +49,7 @@ Set in `.env`:
 
 ## Add your journals
 
-Edit `journals.json` and provide 6–7 journals as:
+Edit `journals.json` to provide your target journals (preloaded with your requested set):
 
 ```json
 [
@@ -65,3 +65,13 @@ This implementation uses:
 2. Citation-overview endpoint per item to extract **citations by year** (not total citation count).
 
 If Scopus response schema differs for your subscription tier, update parser logic in `if_dashboard/scopus.py`.
+
+## API usage visibility
+
+The dashboard now includes a **Scopus API Usage** card showing:
+
+- API calls made for the current page load (cache misses).
+- Cache hits for the current page load.
+- Quota used/remaining/limit when Scopus returns `X-RateLimit-*` headers.
+
+Note: Scopus does not report LLM-style "token" usage; this view reports request/quota usage instead.

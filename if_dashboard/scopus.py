@@ -1,12 +1,27 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .models import JournalItem
 from .storage import CacheStore
+
+
+@dataclass
+class ApiUsage:
+    api_calls_made: int = 0
+    cache_hits: int = 0
+    quota_limit: int | None = None
+    quota_remaining: int | None = None
+
+    @property
+    def quota_used(self) -> int | None:
+        if self.quota_limit is None or self.quota_remaining is None:
+            return None
+        return self.quota_limit - self.quota_remaining
 
 
 class ScopusClient:
@@ -22,6 +37,7 @@ class ScopusClient:
         self.base_url = base_url.rstrip("/")
         self.cache = cache
         self.timeout = timeout
+        self.usage = ApiUsage()
         self.headers = {"X-ELS-APIKey": self.api_key, "Accept": "application/json"}
         if insttoken:
             self.headers["X-ELS-Insttoken"] = insttoken
@@ -29,14 +45,26 @@ class ScopusClient:
     def _get(self, path: str, params: dict[str, Any], cache_key: str) -> dict[str, Any]:
         rec = self.cache.get(cache_key)
         if rec and self.cache.is_fresh(rec):
+            self.usage.cache_hits += 1
             return rec.payload
 
         query = urlencode(params)
         req = Request(f"{self.base_url}{path}?{query}", headers=self.headers)
         with urlopen(req, timeout=self.timeout) as response:  # noqa: S310
             payload = json.loads(response.read().decode("utf-8"))
+            self.usage.api_calls_made += 1
+            self._update_quota_from_headers(dict(response.headers.items()))
         self.cache.set(cache_key, payload)
         return payload
+
+    def _update_quota_from_headers(self, headers: dict[str, str]) -> None:
+        normalized = {k.lower(): v for k, v in headers.items()}
+        limit = normalized.get("x-ratelimit-limit")
+        remaining = normalized.get("x-ratelimit-remaining")
+        if limit and limit.isdigit():
+            self.usage.quota_limit = int(limit)
+        if remaining and remaining.isdigit():
+            self.usage.quota_remaining = int(remaining)
 
     def fetch_journal_items(self, issn: str, year: int) -> list[dict[str, Any]]:
         query = f"ISSN({issn}) AND PUBYEAR IS {year}"

@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlparse
 from .config import get_settings
 from .metrics import compute_impact_factor, compute_immediacy_factor
 from .storage import CacheStore
-from .scopus import ScopusClient
+from .scopus import ApiUsage, ScopusClient
 
 
 def load_journals(path: str = "journals.json") -> list[dict[str, str]]:
@@ -17,7 +17,7 @@ def load_journals(path: str = "journals.json") -> list[dict[str, str]]:
         return json.load(fh)
 
 
-def render_page(journals, selected_issn, selected_year, impact, immediacy, items, error):
+def render_page(journals, selected_issn, selected_year, impact, immediacy, items, error, usage: ApiUsage):
     options = "".join(
         f'<option value="{html.escape(j["issn"])}" {"selected" if j["issn"] == selected_issn else ""}>{html.escape(j["name"])} ({html.escape(j["issn"])})</option>'
         for j in journals
@@ -30,18 +30,34 @@ def render_page(journals, selected_issn, selected_year, impact, immediacy, items
     immed_value = f"{immediacy.value:.3f}" if immediacy and immediacy.value is not None else "N/A"
     error_html = f"<p style='color:#b00020'><strong>{html.escape(error)}</strong></p>" if error else ""
 
-    cards = ""
+    quota_used = usage.quota_used if usage.quota_used is not None else "N/A"
+    quota_remaining = usage.quota_remaining if usage.quota_remaining is not None else "N/A"
+    quota_limit = usage.quota_limit if usage.quota_limit is not None else "N/A"
+
+    usage_card = f"""
+      <div class='card'>
+        <h2>Scopus API Usage</h2>
+        <p>API calls this page load: {usage.api_calls_made}</p>
+        <p>Cache hits this page load: {usage.cache_hits}</p>
+        <p>Quota used (from Scopus headers): {quota_used}</p>
+        <p>Quota remaining (from Scopus headers): {quota_remaining}</p>
+        <p>Quota limit (from Scopus headers): {quota_limit}</p>
+      </div>
+    """
+
+    cards = usage_card
     if impact and immediacy:
         cards = f"""
         <div class='cards'>
           <div class='card'><h2>Custom Impact Factor ({impact.metric_year})</h2><p><strong>{impact_value}</strong></p><p>Numerator: {impact.numerator}</p><p>Denominator: {impact.denominator}</p></div>
           <div class='card'><h2>Immediacy Factor ({immediacy.metric_year})</h2><p><strong>{immed_value}</strong></p><p>Numerator: {immediacy.numerator}</p><p>Denominator: {immediacy.denominator}</p></div>
+          {usage_card}
         </div>
         <h2>Numerator/Denominator contributions (item-level)</h2>
         <table><thead><tr><th>EID</th><th>Title</th><th>Year</th><th>Subtype</th><th>Citations in {selected_year}</th><th>Counts in Denominator?</th></tr></thead><tbody>{rows}</tbody></table>
         """
 
-    return f"""<!doctype html><html><head><meta charset='utf-8'/><title>IF Dashboard</title><style>body{{font-family:Arial,sans-serif;margin:2rem}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccc;padding:.5rem;text-align:left}}.cards{{display:grid;grid-template-columns:repeat(2,minmax(200px,1fr));gap:1rem}}.card{{border:1px solid #ddd;padding:1rem;border-radius:8px}}</style></head><body><h1>Impact & Immediacy Dashboard (Scopus)</h1><form method='get'><label>Journal:</label><select name='issn'>{options}</select><label>Year:</label><input type='number' name='year' value='{selected_year}'/><button type='submit'>Refresh</button></form>{error_html}{cards}</body></html>"""
+    return f"""<!doctype html><html><head><meta charset='utf-8'/><title>IF Dashboard</title><style>body{{font-family:Arial,sans-serif;margin:2rem}}table{{border-collapse:collapse;width:100%;margin:1rem 0}}th,td{{border:1px solid #ccc;padding:.5rem;text-align:left}}.cards{{display:grid;grid-template-columns:repeat(3,minmax(200px,1fr));gap:1rem}}.card{{border:1px solid #ddd;padding:1rem;border-radius:8px}}</style></head><body><h1>Impact & Immediacy Dashboard (Scopus)</h1><form method='get'><label>Journal:</label><select name='issn'>{options}</select><label>Year:</label><input type='number' name='year' value='{selected_year}'/><button type='submit'>Refresh</button></form>{error_html}{cards}</body></html>"""
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
@@ -56,6 +72,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         immediacy = None
         items = []
         error = None
+        usage = ApiUsage()
 
         if not settings.scopus_api_key:
             error = "SCOPUS_API_KEY is missing. Export it before running to fetch live data."
@@ -71,10 +88,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 )
                 impact = compute_impact_factor(items, year)
                 immediacy = compute_immediacy_factor(items, year)
+                usage = client.usage
             except Exception as exc:  # noqa: BLE001
                 error = f"Failed to load Scopus data: {exc}"
 
-        content = render_page(journals, selected_issn, year, impact, immediacy, items, error).encode("utf-8")
+        content = render_page(journals, selected_issn, year, impact, immediacy, items, error, usage).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(content)))
