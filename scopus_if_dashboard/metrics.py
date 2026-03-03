@@ -403,7 +403,7 @@ def compute_scopus_if_proxy(
                 client,
                 q,
                 use_cursor=bool(use_cursor_pagination),
-                count=200,
+                count=25,
             )
         )
 
