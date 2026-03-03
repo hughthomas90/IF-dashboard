@@ -137,6 +137,16 @@ numerator_mode = st.sidebar.selectbox(
 
 exclude_self = st.sidebar.checkbox("Exclude self-citations (if enabled for your key)", value=False)
 
+use_cursor = st.sidebar.checkbox(
+    "Use cursor deep pagination (requires entitlement)",
+    value=False,
+    help=(
+        "If enabled, the app will try to use the Scopus Search 'cursor' parameter for deep pagination. "
+        "Some API keys return ENTITLEMENTS_ERROR for cursor; leave this off in that case. "
+        "Without cursor pagination, Scopus Search iteration is limited to 5,000 results per query."
+    ),
+)
+
 run = st.sidebar.button("Compute proxy")
 
 # --- Main area ---
@@ -191,6 +201,7 @@ with st.spinner("Computing Scopus-derived IF proxy…"):
             denom_doctypes=tuple(denom_doctypes_codes),
             numerator_mode=numerator_mode,
             exclude_self=exclude_self,
+            use_cursor_pagination=use_cursor,
         )
     except ScopusApiError as e:
         st.error(str(e))
@@ -232,6 +243,8 @@ st.dataframe(df, use_container_width=True)
 st.subheader("Notes / troubleshooting")
 st.markdown(
     """
+- If you get **403 ENTITLEMENTS_ERROR** saying the **cursor parameter is restricted**, disable *cursor deep pagination* in the sidebar.
+  Without cursor pagination, Scopus Search iteration is limited to **5,000 results per query**.
 - If you get **403 / authentication or entitlements** on Citation Overview, your key likely lacks that entitlement. Elsevier notes that the Citation Overview API can be access-controlled.  
 - For very high-volume journals, this can take time and may hit rate limits because Citation Overview accepts **up to 25 identifiers per request** (batched).  
 - Use Streamlit caching (already enabled in the code) or increase TTL to reduce repeated calls.
