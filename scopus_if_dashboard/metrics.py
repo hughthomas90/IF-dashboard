@@ -174,8 +174,8 @@ def scopus_search_total(client: ElsevierScopusClient, query: str) -> int:
 def scopus_search_scopus_ids(
     client: ElsevierScopusClient,
     query: str,
-    use_cursor: bool = True,
-    count: int = 25,
+    use_cursor: bool = False,
+    count: int = 200,
     max_records: Optional[int] = None,
 ) -> List[str]:
     """
@@ -186,6 +186,8 @@ def scopus_search_scopus_ids(
     ids: List[str] = []
     seen = set()
 
+    # With Scopus Search, max "count" depends on the view. STANDARD is typically
+    # higher throughput than COMPLETE. We only need SCOPUS_ID identifiers.
     params = {"query": query, "view": "STANDARD", "count": int(count)}
     cursor = "*" if use_cursor else None
     start = 0
@@ -197,8 +199,33 @@ def scopus_search_scopus_ids(
         else:
             page_params["start"] = start
 
-        data = client.get_json("/content/search/scopus", params=page_params)
+        try:
+            data = client.get_json("/content/search/scopus", params=page_params)
+        except ScopusApiError as e:
+            # Some API keys are not entitled to use cursor-based deep pagination.
+            # If cursor is rejected, transparently fall back to start-based paging.
+            msg = str(e).lower()
+            if cursor is not None and ("cursor" in msg and "restricted" in msg):
+                cursor = None
+                start = 0
+                continue
+            raise
         sr = data.get("search-results", {})
+
+        # If we are NOT using cursor pagination, Scopus Search has a 5,000 item
+        # result cap for iterating results. If the result set is larger, we
+        # cannot retrieve all identifiers accurately.
+        if cursor is None and max_records is None:
+            total = sr.get("opensearch:totalResults") or 0
+            try:
+                total_i = int(total)
+            except Exception:
+                total_i = 0
+            if total_i > 5000:
+                raise ScopusApiError(
+                    f"Your query returned {total_i} results, but without cursor pagination only the first 5,000 can be retrieved. "
+                    "Refine the query (e.g., limit doctypes) or request cursor pagination entitlement from Elsevier."
+                )
 
         entries = sr.get("entry", []) or []
         if isinstance(entries, dict):
@@ -332,6 +359,7 @@ def compute_scopus_if_proxy(
     denom_doctypes: Tuple[str, ...] = ("ar", "re"),
     numerator_mode: str = "all",  # "all" or "same"
     exclude_self: bool = False,
+    use_cursor_pagination: bool = False,
 ) -> IFProxyResult:
     """
     Compute a 2-year "impact factor"-like proxy from Scopus:
@@ -366,10 +394,18 @@ def compute_scopus_if_proxy(
         _build_journal_year_query(issn, y2, num_doctypes),
     ]
 
-    # Fetch IDs (potentially many)
+    # Fetch IDs (potentially many). If your API key is not entitled to
+    # cursor-based deep pagination, you must keep each query <= 5,000 results.
     num_ids: List[str] = []
     for q in num_queries:
-        num_ids.extend(scopus_search_scopus_ids(client, q, use_cursor=True, count=25))
+        num_ids.extend(
+            scopus_search_scopus_ids(
+                client,
+                q,
+                use_cursor=bool(use_cursor_pagination),
+                count=200,
+            )
+        )
 
     numerator_items = len(num_ids)
 

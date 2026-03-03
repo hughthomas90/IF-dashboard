@@ -36,4 +36,6 @@ Add secrets in the app settings:
 ## Notes
 
 - Citation Overview accepts **up to 25 identifiers per request**. Large journals may need many batched requests.
+- Scopus Search offers a `cursor` parameter for deep pagination, but some API keys return an **ENTITLEMENTS_ERROR** saying its use is restricted. In that case, the app falls back to `start` pagination.
+- Without cursor pagination, Scopus Search iteration is limited to **5,000 results per query**.
 - Results will differ from Clarivate’s JIF; this is a proxy computed from Scopus data.
