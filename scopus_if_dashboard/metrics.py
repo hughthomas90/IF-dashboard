@@ -175,7 +175,7 @@ def scopus_search_scopus_ids(
     client: ElsevierScopusClient,
     query: str,
     use_cursor: bool = False,
-    count: int = 200,
+    count: int = 25,
     max_records: Optional[int] = None,
 ) -> List[str]:
     """
